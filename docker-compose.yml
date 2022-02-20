@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  rabbit:
+    restart: always
+    image: "rabbitmq:3-management"
+    environment:
+      RABBITMQ_NODENAME: "rabbit@localhost"
+      RABBITMQ_ERLANG_COOKIE: "SWQOKODSQALRPCLNMEQG"
+      RABBITMQ_DEFAULT_USER: "rabbitmq"
+      RABBITMQ_DEFAULT_PASS: "rabbitmq"
+      RABBITMQ_DEFAULT_VHOST: "/"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    depends_on:
+      - rabbit
+
+  celery:
+    restart: always
+    build: .
+    command: celery -A myshop worker
+    volumes:
+      - .:/code
+    links:
+      - rabbit
+    depends_on:
+      - web
+      - rabbit
+
+  flower:
+    build: .
+    command: celery -A myshop flower
+    ports:
+      - "5555:5555"
+    depends_on:
+      - web
+      - rabbit
+      - celery
